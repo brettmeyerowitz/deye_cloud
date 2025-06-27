@@ -1,0 +1,10 @@
+{
+  "domain": "deye_cloud",
+  "name": "Deye Cloud Integration",
+  "version": "1.0.0",
+  "config_flow": true,
+  "documentation": "https://github.com/brettmeyerowitz/deye-cloud-homeassistant",
+  "requirements": ["aiohttp"],
+  "codeowners": ["@brettmeyerowitz"],
+  "iot_class": "cloud_polling"
+}

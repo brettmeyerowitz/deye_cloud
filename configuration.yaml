@@ -1,0 +1,7 @@
+deye_cloud:
+  app_id: YOUR_APP_ID
+  app_secret: YOUR_APP_SECRET
+  email: YOUR_EMAIL
+  password: YOUR_PASSWORD
+  device_id: YOUR_DEVICE_ID
+  base_url: https://eu1-developer.deyecloud.com/v1.0
