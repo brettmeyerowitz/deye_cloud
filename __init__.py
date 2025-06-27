@@ -42,12 +42,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         update_interval=None,  # could set a default interval here
     )
 
+    toucoordinator = DataUpdateCoordinator(
+        hass,
+        _LOGGER,
+        name=f"{DOMAIN}_{entry.entry_id}",
+        update_method=api.get_time_of_use,
+        update_interval=None,  # could set a default interval here
+    )
+
     # Perform the first data refresh to populate coordinator.data
     await coordinator.async_config_entry_first_refresh()
+    await toucoordinator.async_config_entry_first_refresh()
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
         "api": api,
-        "coordinator": coordinator
+        "coordinator": coordinator,
+        "toucoordinator": toucoordinator
     }
 
     # Save config to storage

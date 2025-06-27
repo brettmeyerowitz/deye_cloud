@@ -1,4 +1,5 @@
 from __future__ import annotations
+import logging
 
 from homeassistant.components.number import NumberEntity
 from homeassistant.core import HomeAssistant
@@ -8,6 +9,8 @@ from homeassistant.const import PERCENTAGE
 from homeassistant.helpers.entity import EntityCategory
 
 from . import DOMAIN
+
+_LOGGER = logging.getLogger(__name__)
 
 class DeyeTOUBatteryNumber(NumberEntity):
     def __init__(self, coordinator, api, slot_index, initial_soc, device_sn):
@@ -49,11 +52,15 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     data = hass.data[DOMAIN][entry.entry_id]
-    coordinator = data["coordinator"]
+    coordinator = data["toucoordinator"]
     api = data["api"]
 
-    await coordinator.async_config_entry_first_refresh()
-    tou_data = await api.get_time_of_use()
+    tou_data = coordinator.data
+    if not tou_data:
+        _LOGGER.warning("Coordinator returned no data during setup")
+        await coordinator.async_config_entry_first_refresh()
+
+    tou_data = coordinator.data
     if not isinstance(tou_data, list):
         tou_data = []
 
