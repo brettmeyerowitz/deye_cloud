@@ -24,11 +24,11 @@ _LOGGER = logging.getLogger(__name__)
 
 # Schema for initial user input: base URL, app credentials, and user login info
 STEP_USER_DATA_SCHEMA = vol.Schema({
-    vol.Required(CONF_BASE_URL): str,
-    vol.Required(CONF_APP_ID): str,
-    vol.Required(CONF_APP_SECRET): str,
-    vol.Required(CONF_EMAIL): str,
-    vol.Required(CONF_PASSWORD): str,
+    vol.Required(CONF_BASE_URL): TextSelector(TextSelectorConfig(type="text")),
+    vol.Required(CONF_APP_ID): TextSelector(TextSelectorConfig(type="text")),
+    vol.Required(CONF_APP_SECRET): TextSelector(TextSelectorConfig(type="text")),
+    vol.Required(CONF_EMAIL): TextSelector(TextSelectorConfig(type="text")),
+    vol.Required(CONF_PASSWORD): TextSelector(TextSelectorConfig(type="text")),
 })
 
 class DeyeCloudConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -105,3 +105,70 @@ class DeyeCloudConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         })
 
         return self.async_show_form(step_id="select_inverter", data_schema=schema)
+
+class DeyeCloudOptionsFlow(config_entries.OptionsFlow):
+    """Options flow handler to update Deye Cloud credentials and device selection."""
+    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
+        self.config_entry = config_entry
+
+    async def async_step_init(self, user_input=None):
+        errors = {}
+        if user_input is not None:
+            try:
+                # Create a temporary API client with updated input
+                api = DeyeCloudAPI(
+                    base_url=self.config_entry.data[CONF_BASE_URL],
+                    app_id=user_input[CONF_APP_ID],
+                    app_secret=user_input[CONF_APP_SECRET],
+                    email=user_input[CONF_EMAIL],
+                    password=user_input[CONF_PASSWORD],
+                    device_sn=None,
+                )
+                await api.authenticate()
+                headers = await api.get_headers()
+                station_url = f"{self.config_entry.data[CONF_BASE_URL]}/station/listWithDevice"
+                async with api._session.post(
+                    station_url, headers=headers, json={"page": 1, "size": 50}
+                ) as resp:
+                    result = await resp.json()
+
+                valid_device_sns = {
+                    device["deviceSn"]
+                    for station in result.get("stationList", [])
+                    for device in station.get("deviceListItems", [])
+                    if device.get("deviceType") == "INVERTER"
+                }
+
+                # Get the current saved SN
+                current_sn = self.config_entry.data.get(CONF_DEVICE_SN)
+                updated_data = {
+                    **self.config_entry.data,
+                    CONF_APP_ID: user_input[CONF_APP_ID],
+                    CONF_APP_SECRET: user_input[CONF_APP_SECRET],
+                    CONF_EMAIL: user_input[CONF_EMAIL],
+                    CONF_PASSWORD: user_input[CONF_PASSWORD],
+                }
+
+                if current_sn not in valid_device_sns:
+                    updated_data.pop(CONF_DEVICE_SN, None)
+                    updated_data.pop(CONF_STATION_LABEL, None)
+
+                return self.async_create_entry(title="", data=updated_data)
+
+            except Exception as e:
+                _LOGGER.exception("❌ Options flow auth failed: %s", e)
+                errors["base"] = "auth_failed"
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema({
+                vol.Required(CONF_APP_ID, default=self.config_entry.data.get(CONF_APP_ID, "")): str,
+                vol.Required(CONF_APP_SECRET, default=self.config_entry.data.get(CONF_APP_SECRET, "")): str,
+                vol.Required(CONF_EMAIL, default=self.config_entry.data.get(CONF_EMAIL, "")): str,
+                vol.Required(CONF_PASSWORD, default=self.config_entry.data.get(CONF_PASSWORD, "")): str,
+            }),
+            errors=errors
+        )
+
+from homeassistant.config_entries import ConfigEntry
+

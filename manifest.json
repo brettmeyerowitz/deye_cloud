@@ -6,5 +6,6 @@
   "documentation": "https://github.com/brettmeyerowitz/deye-cloud",
   "requirements": ["aiohttp"],
   "codeowners": ["@brettmeyerowitz"],
+  "dependencies": ["number"],
   "iot_class": "cloud_polling"
 }

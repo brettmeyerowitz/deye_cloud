@@ -3,12 +3,21 @@ import aiohttp
 import asyncio
 import time
 import logging
-
-import logging
+import json
 _LOGGER = logging.getLogger(__name__)
 
 class DeyeCloudAPI:
-    def __init__(self, base_url, app_id, app_secret, email, password, device_sn):
+    def __init__(self, base_url, app_id, app_secret, email, password, device_sn=None):
+        """
+        Initialize the API client.
+
+        :param base_url: Base URL for the API
+        :param app_id: Application ID
+        :param app_secret: Application secret
+        :param email: User email
+        :param password: User password
+        :param device_sn: Device serial number (optional, can be set later with set_device)
+        """
         self._base_url = base_url
         self._app_id = app_id
         self._app_secret = app_secret
@@ -19,6 +28,10 @@ class DeyeCloudAPI:
         self._token = None
         self._token_expiry = 0  # Epoch time in seconds
         self._session = aiohttp.ClientSession()
+
+    def set_device(self, device_sn: str):
+        """Sets the active device serial number."""
+        self._device_sn = device_sn
 
     async def close(self):
         await self._session.close()
@@ -42,7 +55,6 @@ class DeyeCloudAPI:
             async with self._session.post(url, json=payload) as resp:
                 resp.raise_for_status()
                 result = await resp.json()
-                _LOGGER.debug("Authentication response: %s", result)
                 if not result.get("accessToken"):
                     raise ValueError("No accessToken returned")
 
@@ -51,6 +63,18 @@ class DeyeCloudAPI:
         except Exception as e:
             _LOGGER.exception("Authentication failed: %s", e)
             raise
+
+    async def get_station_list_with_devices(self):
+        _LOGGER.info("Fetching station list with devices...")
+        url = f"{self._base_url}/station/listWithDevice"
+        headers = await self.get_headers()
+        payload = {"page": 1, "size": 50}
+
+        async with self._session.post(url, headers=headers, json=payload) as resp:
+            resp.raise_for_status()
+            result = await resp.json()
+            _LOGGER.debug("Station list response: %s", result)
+            return result["stationList"]
 
     async def get_headers(self):
         await self.authenticate()
@@ -89,14 +113,16 @@ class DeyeCloudAPI:
             result = await resp.json()
             return result["timeUseSettingItems"]
 
-    async def get_station_list_with_devices(self):
-        _LOGGER.info("Fetching station list with devices...")
-        url = f"{self._base_url}/station/listWithDevice"
+    async def update_time_of_use(self, tou_data: list[dict]):
+        if not self._device_sn:
+            raise ValueError("Device Serial Number not set when calling update_time_of_use. Call set_device() first.")
+        
+        url = f"{self._base_url}/order/sys/tou/update"
         headers = await self.get_headers()
-        payload = {"page": 1, "size": 50}
+        payload = {"deviceSn": self._device_sn, "timeUseSettingItems": tou_data}
 
+        _LOGGER.info(f"Updating time of use data for device {self._device_sn} at {url} - {json.dumps(payload)}")
         async with self._session.post(url, headers=headers, json=payload) as resp:
             resp.raise_for_status()
             result = await resp.json()
-            _LOGGER.debug("Station list response: %s", result)
-            return result["stationList"]
+            _LOGGER.debug("Update time of use response: %s", result)

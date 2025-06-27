@@ -25,6 +25,9 @@ def get_display_name(key: str) -> str:
         "BMSCurrent": "BMS Current",
         "DCVoltagePV1": "DC Voltage PV1",
         "DCVoltagePV2": "DC Voltage PV2",
+        "ExternalCT1Power": "External CT1 Power",
+        "ExternalCT2Power": "External CT2 Power",
+        "ExternalCT3Power": "External CT3 Power"
     }
     if key in replacements:
         return replacements[key]
@@ -81,23 +84,26 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    api: DeyeCloudAPI = hass.data[DOMAIN][entry.entry_id]
-
-    coordinator = DeyeDataCoordinator(hass, api)
-    await coordinator.async_config_entry_first_refresh()
+    data = hass.data[DOMAIN][entry.entry_id]
+    api: DeyeCloudAPI = data["api"]
+    coordinator = data["coordinator"]
 
     sensors: list[SensorEntity] = []
 
     device_info = {
         "identifiers": {(DOMAIN, api._device_sn)},
-        "name": f"Deye Inverter {api._device_sn}",
+        "name": entry.data.get("device_name", f"Deye Inverter {api._device_sn}"),
         "manufacturer": "Deye",
         "model": "Inverter",
-        "configuration_url": "https://deyecloud.com",
+        "configuration_url": entry.data.get("base_url", "https://deyecloud.com"),
     }
 
     _LOGGER.info("Setting up Deye realtime sensors")
-    for key, value in coordinator.data.items():
+    if not coordinator.data:
+        _LOGGER.warning("Coordinator returned no data during setup")
+        return
+    for entry in coordinator.data:
+        key = entry.get("key")
         if key is not None:
             sensors.append(DeyeRealtimeSensor(coordinator, key, device_info))
 
@@ -105,7 +111,8 @@ async def async_setup_entry(
         tou_data = await api.get_time_of_use()
         for idx, slot in enumerate(tou_data, start=1):
             for key in slot:
-                sensors.append(DeyeTOUSensor(slot, key, idx, device_info))
+                if key != "soc":
+                    sensors.append(DeyeTOUSensor(slot, key, idx, device_info))
     except Exception as e:
         _LOGGER.warning(f"TOU data could not be fetched: {e}")
 
@@ -124,10 +131,10 @@ class DeyeDataCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self):
         try:
             data_list = await self.api.get_realtime_data()
-            return {entry["key"]: entry["value"] for entry in data_list}
+            return data_list
         except Exception as e:
             _LOGGER.error(f"Failed to fetch real-time data: {e}")
-            return {}
+            return []
 
 class DeyeRealtimeSensor(CoordinatorEntity, SensorEntity):
     def __init__(self, coordinator: DeyeDataCoordinator, key: str, device_info: dict):
@@ -144,7 +151,10 @@ class DeyeRealtimeSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def native_value(self):
-        return self.coordinator.data.get(self._key)
+        for item in self.coordinator.data:
+            if item.get("key") == self._key:
+                return item.get("value")
+        return None
 
 class DeyeTOUSensor(SensorEntity):
     def __init__(self, slot_data: dict, key: str, index: int, device_info: dict):
