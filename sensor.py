@@ -8,7 +8,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Coor
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.util import dt as dt_util
 
 from . import DOMAIN
 from .deye_api import DeyeCloudAPI
@@ -35,24 +35,46 @@ def get_display_name(key: str) -> str:
     name = name.replace("Pv", "PV").replace("pv", "PV")
     return name.strip()
 
-def get_sensor_metadata(key: str) -> tuple[str | None, str | None, str | None]:
-    key = key.lower()
-    if "voltage" in key:
-        return ("voltage", "V", "measurement")
-    if "current" in key:
-        return ("current", "A", "measurement")
-    elif "power" in key or "load" in key:
-        return "power", "W", "measurement"
-    elif "temperature" in key:
-        return "temperature", "°C", "measurement"
-    elif "energy" in key:
-        return "energy", "Wh", "total_increasing"
-    elif "soc" in key or "capacity" in key:
-        return "battery", "%", "measurement"
-    elif "frequency" in key:
-        return ("frequency", "Hz", "measurement")
-    return (None, None, None)
+def get_sensor_attributes(key: str) -> dict:
+    key_lower = key.lower()
+    if "voltage" in key_lower:
+        return {"device_class": "voltage", "unit_of_measurement": "V", "state_class": "measurement"}
+    if "current" in key_lower:
+        return {"device_class": "current", "unit_of_measurement": "A", "state_class": "measurement"}
+    if "power" in key_lower:
+        return {"device_class": "power", "unit_of_measurement": "W", "state_class": "measurement"}
+    if "energy" in key_lower or "kwh" in key_lower:
+        return {"device_class": "energy", "unit_of_measurement": "kWh", "state_class": "total_increasing"}
+    if "temperature" in key_lower:
+        return {"device_class": "temperature", "unit_of_measurement": "°C", "state_class": "measurement"}
+    if "frequency" in key_lower:
+        return {"device_class": "frequency", "unit_of_measurement": "Hz", "state_class": "measurement"}
+    if "soc" in key_lower or "capacity" in key_lower:
+        return {"unit_of_measurement": "%", "state_class": "measurement"}
+    return {"state_class": "measurement"}
 
+TOU_KEY_NAME_MAP = {
+    "power": "Power",
+    "voltage": "Voltage",
+    "enableGridCharge": "Grid Charge",
+    "enableGeneration": "Generation",
+    "soc": "Battery",
+    "time": "Start Time",
+}
+
+def get_tou_sensor_attributes(key: str) -> dict:
+    key_lower = key.lower()
+    if key_lower == "voltage":
+        return {"device_class": "voltage", "unit_of_measurement": "V", "state_class": "measurement"}
+    if key_lower == "power":
+        return {"device_class": "power", "unit_of_measurement": "W", "state_class": "measurement"}
+    if key_lower == "soc":
+        return {"unit_of_measurement": "%", "state_class": "measurement"}
+    if key_lower in ["enablegridcharge", "enablegeneration"]:
+        return {"device_class": "enum", "options": ["Enabled", "Disabled"]}
+    if key_lower == "time":
+        return {"device_class": "timestamp"}
+    return {}
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -64,17 +86,18 @@ async def async_setup_entry(
     coordinator = DeyeDataCoordinator(hass, api)
     await coordinator.async_config_entry_first_refresh()
 
-    device_info = DeviceInfo(
-        identifiers={(DOMAIN, api._device_id)},
-        name=f"Deye Inverter ({api._device_id})",
-        manufacturer="Deye",
-        model="Hybrid Inverter",
-    )
-
     sensors: list[SensorEntity] = []
-    
+
+    device_info = {
+        "identifiers": {(DOMAIN, api._device_id)},
+        "name": f"Deye Inverter {api._device_id}",
+        "manufacturer": "Deye",
+        "model": "Inverter",
+        "configuration_url": "https://deyecloud.com",
+    }
+
     _LOGGER.info("Setting up Deye realtime sensors")
-    for key in coordinator.data:
+    for key, value in coordinator.data.items():
         if key is not None:
             sensors.append(DeyeRealtimeSensor(coordinator, key, device_info))
 
@@ -87,7 +110,6 @@ async def async_setup_entry(
         _LOGGER.warning(f"TOU data could not be fetched: {e}")
 
     async_add_entities(sensors)
-
 
 class DeyeDataCoordinator(DataUpdateCoordinator):
     def __init__(self, hass: HomeAssistant, api: DeyeCloudAPI):
@@ -107,24 +129,22 @@ class DeyeDataCoordinator(DataUpdateCoordinator):
             _LOGGER.error(f"Failed to fetch real-time data: {e}")
             return {}
 
-
 class DeyeRealtimeSensor(CoordinatorEntity, SensorEntity):
     def __init__(self, coordinator: DeyeDataCoordinator, key: str, device_info: dict):
         super().__init__(coordinator)
         safe_key = key if isinstance(key, str) else "unknown"
         self._key = key
         self._attr_unique_id = f"deye_{safe_key.lower()}"
-        self._attr_name = f"Deye {get_display_name(safe_key)}"
+        self._attr_name = get_display_name(safe_key)
         self._attr_device_info = device_info
-        device_class, unit, state_class = get_sensor_metadata(safe_key)
-        self._attr_device_class = device_class
-        self._attr_unit_of_measurement = unit
-        self._attr_state_class = state_class
+
+        sensor_attrs = get_sensor_attributes(safe_key)
+        for attr_name, attr_value in sensor_attrs.items():
+            setattr(self, f"_attr_{attr_name}", attr_value)
 
     @property
     def native_value(self):
         return self.coordinator.data.get(self._key)
-
 
 class DeyeTOUSensor(SensorEntity):
     def __init__(self, slot_data: dict, key: str, index: int, device_info: dict):
@@ -132,9 +152,47 @@ class DeyeTOUSensor(SensorEntity):
         self._key = key
         self._index = index
         self._attr_unique_id = f"deye_prog{index}_{key.lower()}"
-        self._attr_name = f"Deye prog{index}_{key}"
+
+        display_names = {
+            "enableGridCharge": "Grid Charge",
+            "enableGeneration": "Generation",
+            "soc": "Battery",
+            "power": "Power",
+            "voltage": "Voltage",
+            "time": "Time"
+        }
+
+        pretty_key = display_names.get(key, key)
+        self._attr_name = f"Program {index} {pretty_key}"
         self._attr_device_info = device_info
+
+        sensor_attrs = get_tou_sensor_attributes(key)
+        for attr_name, attr_value in sensor_attrs.items():
+            setattr(self, f"_attr_{attr_name}", attr_value)
 
     @property
     def native_value(self):
-        return self._slot_data.get(self._key)
+        val = self._slot_data.get(self._key)
+
+        if self._key in ["enableGridCharge", "enableGeneration"]:
+            return "Enabled" if val else "Disabled"
+
+        if self._key == "time":
+            try:
+                if isinstance(val, str) and len(val) == 4 and val.isdigit():
+                    hours = int(val[:2])
+                    minutes = int(val[2:])
+                    now = dt_util.now()
+                    time_with_tz = now.replace(hour=hours, minute=minutes, second=0, microsecond=0)
+                    # If that results in a time in the past, roll it forward to the next day
+                    if time_with_tz < now:
+                        time_with_tz += timedelta(days=1)
+                    return time_with_tz
+                else:
+                    _LOGGER.warning(f"Unexpected time format for TOU slot: {val}")
+                    return None
+            except Exception as e:
+                _LOGGER.error(f"Failed to parse TOU time '{val}': {e}")
+                return None
+
+        return val
