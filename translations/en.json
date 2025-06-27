@@ -1,25 +1,27 @@
-
-
 {
   "config": {
     "step": {
       "user": {
         "title": "Configure Deye Cloud",
-        "description": "Enter your Deye Cloud credentials and device details.",
+        "description": "Enter your Deye Cloud credentials and API details.",
         "data": {
-          "base_url": "Base URL",
+          "base_url": "API base URL (e.g. https://eu1-developer.deyecloud.com/v1.0)",
           "app_id": "App ID",
           "app_secret": "App Secret",
-          "email": "Email",
-          "password": "Password (SHA256 hashed)",
-          "device_id": "Device ID"
+          "email": "Email address",
+          "password": "Password"
+        }
+      },
+      "select_inverter": {
+        "title": "Select Inverter",
+        "description": "Choose the inverter you'd like to monitor.",
+        "data": {
+          "device_sn": "Inverter"
         }
       }
     },
     "error": {
-      "cannot_connect": "Failed to connect to the Deye Cloud API. Check your settings.",
-      "invalid_auth": "Invalid credentials. Please verify your email and password.",
-      "unknown": "An unknown error occurred."
+      "auth_failed": "Authentication failed. Please check your credentials."
     }
   }
 }

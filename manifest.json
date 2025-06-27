@@ -3,7 +3,7 @@
   "name": "Deye Cloud Integration",
   "version": "1.0.0",
   "config_flow": true,
-  "documentation": "https://github.com/brettmeyerowitz/deye-cloud-homeassistant",
+  "documentation": "https://github.com/brettmeyerowitz/deye-cloud",
   "requirements": ["aiohttp"],
   "codeowners": ["@brettmeyerowitz"],
   "iot_class": "cloud_polling"

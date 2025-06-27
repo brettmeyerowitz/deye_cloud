@@ -10,7 +10,7 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.util import dt as dt_util
 
-from . import DOMAIN
+DOMAIN = "deye_cloud"
 from .deye_api import DeyeCloudAPI
 
 _LOGGER = logging.getLogger(__name__)
@@ -89,8 +89,8 @@ async def async_setup_entry(
     sensors: list[SensorEntity] = []
 
     device_info = {
-        "identifiers": {(DOMAIN, api._device_id)},
-        "name": f"Deye Inverter {api._device_id}",
+        "identifiers": {(DOMAIN, api._device_sn)},
+        "name": f"Deye Inverter {api._device_sn}",
         "manufacturer": "Deye",
         "model": "Inverter",
         "configuration_url": "https://deyecloud.com",
