@@ -73,7 +73,7 @@ def get_tou_sensor_attributes(key: str) -> dict:
     if key_lower in ["enablegridcharge", "enablegeneration"]:
         return {"device_class": "enum", "options": ["Enabled", "Disabled"]}
     if key_lower == "time":
-        return {"device_class": "timestamp"}
+        return {"unit_of_measurement": None, "state_class": None} # remove device_class to treat it as plain text
     return {}
 
 async def async_setup_entry(
@@ -177,22 +177,10 @@ class DeyeTOUSensor(SensorEntity):
         if self._key in ["enableGridCharge", "enableGeneration"]:
             return "Enabled" if val else "Disabled"
 
-        if self._key == "time":
-            try:
-                if isinstance(val, str) and len(val) == 4 and val.isdigit():
-                    hours = int(val[:2])
-                    minutes = int(val[2:])
-                    now = dt_util.now()
-                    time_with_tz = now.replace(hour=hours, minute=minutes, second=0, microsecond=0)
-                    # If that results in a time in the past, roll it forward to the next day
-                    if time_with_tz < now:
-                        time_with_tz += timedelta(days=1)
-                    return time_with_tz
-                else:
-                    _LOGGER.warning(f"Unexpected time format for TOU slot: {val}")
-                    return None
-            except Exception as e:
-                _LOGGER.error(f"Failed to parse TOU time '{val}': {e}")
-                return None
+        if self._key.lower() == "time":
+            raw_time = self._slot_data.get(self._key)
+            if isinstance(raw_time, str) and len(raw_time) == 4:
+                return f"{raw_time[:2]}:{raw_time[2:]}"
+            return self._slot_data.get(self._key)
 
         return val
