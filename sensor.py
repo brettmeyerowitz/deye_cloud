@@ -6,9 +6,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, CoordinatorEntity
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.util import dt as dt_util
 
 DOMAIN = "deye_cloud"
 from .deye_api import DeyeCloudAPI
@@ -65,20 +63,6 @@ TOU_KEY_NAME_MAP = {
     "time": "Start Time",
 }
 
-def get_tou_sensor_attributes(key: str) -> dict:
-    key_lower = key.lower()
-    if key_lower == "voltage":
-        return {"device_class": "voltage", "unit_of_measurement": "V", "state_class": "measurement"}
-    if key_lower == "power":
-        return {"device_class": "power", "unit_of_measurement": "W", "state_class": "measurement"}
-    if key_lower == "soc":
-        return {"unit_of_measurement": "%", "state_class": "measurement"}
-    if key_lower in ["enablegridcharge", "enablegeneration"]:
-        return {"device_class": "enum", "options": ["Enabled", "Disabled"]}
-    if key_lower == "time":
-        return {"unit_of_measurement": None, "state_class": None} # remove device_class to treat it as plain text
-    return {}
-
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -107,25 +91,11 @@ async def async_setup_entry(
         if key is not None:
             sensors.append(DeyeRealtimeSensor(coordinator, key, device_info))
 
-    try:
-        tou_data = await api.get_time_of_use()
-        for idx, slot in enumerate(tou_data, start=1):
-            for key in slot:
-                if key != "soc":
-                    sensors.append(DeyeTOUSensor(slot, key, idx, device_info))
-    except Exception as e:
-        _LOGGER.warning(f"TOU data could not be fetched: {e}")
-
     async_add_entities(sensors)
 
 class DeyeDataCoordinator(DataUpdateCoordinator):
     def __init__(self, hass: HomeAssistant, api: DeyeCloudAPI):
-        super().__init__(
-            hass,
-            _LOGGER,
-            name="Deye Cloud Coordinator",
-            update_interval=SCAN_INTERVAL,
-        )
+        super().__init__(hass, _LOGGER, name="Deye Cloud Coordinator", update_interval=SCAN_INTERVAL)
         self.api = api
 
     async def _async_update_data(self):
@@ -155,42 +125,3 @@ class DeyeRealtimeSensor(CoordinatorEntity, SensorEntity):
             if item.get("key") == self._key:
                 return item.get("value")
         return None
-
-class DeyeTOUSensor(SensorEntity):
-    def __init__(self, slot_data: dict, key: str, index: int, device_info: dict):
-        self._slot_data = slot_data
-        self._key = key
-        self._index = index
-        self._attr_unique_id = f"deye_prog{index}_{key.lower()}"
-
-        display_names = {
-            "enableGridCharge": "Grid Charge",
-            "enableGeneration": "Generation",
-            "soc": "Battery",
-            "power": "Power",
-            "voltage": "Voltage",
-            "time": "Time"
-        }
-
-        pretty_key = display_names.get(key, key)
-        self._attr_name = f"Program {index} {pretty_key}"
-        self._attr_device_info = device_info
-
-        sensor_attrs = get_tou_sensor_attributes(key)
-        for attr_name, attr_value in sensor_attrs.items():
-            setattr(self, f"_attr_{attr_name}", attr_value)
-
-    @property
-    def native_value(self):
-        val = self._slot_data.get(self._key)
-
-        if self._key in ["enableGridCharge", "enableGeneration"]:
-            return "Enabled" if val else "Disabled"
-
-        if self._key.lower() == "time":
-            raw_time = self._slot_data.get(self._key)
-            if isinstance(raw_time, str) and len(raw_time) == 4:
-                return f"{raw_time[:2]}:{raw_time[2:]}"
-            return self._slot_data.get(self._key)
-
-        return val

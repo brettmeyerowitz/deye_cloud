@@ -171,4 +171,3 @@ class DeyeCloudOptionsFlow(config_entries.OptionsFlow):
         )
 
 from homeassistant.config_entries import ConfigEntry
-

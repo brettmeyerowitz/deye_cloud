@@ -1,6 +1,6 @@
 from .const import DOMAIN
 
-PLATFORMS = ["sensor", "number"]
+PLATFORMS = ["sensor", "number", "switch"]
 
 import logging
 _LOGGER = logging.getLogger(__name__)
@@ -9,7 +9,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
 from .deye_api import DeyeCloudAPI
-from homeassistant.helpers.storage import STORAGE_DIR, Store
+from homeassistant.helpers.storage import Store
 
 async def async_get_options_flow(config_entry: ConfigEntry):
     from .config_flow import DeyeCloudOptionsFlow

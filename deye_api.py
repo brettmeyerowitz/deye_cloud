@@ -113,10 +113,20 @@ class DeyeCloudAPI:
             result = await resp.json()
             return result["timeUseSettingItems"]
 
+    def _normalize_time_format(self, time_str: str) -> str:
+        """Converts time from 'HHMM' to 'HH:MM' format."""
+        if len(time_str) == 4 and time_str.isdigit():
+            return f"{time_str[:2]}:{time_str[2:]}"
+        return time_str
+
     async def update_time_of_use(self, tou_data: list[dict]):
         if not self._device_sn:
             raise ValueError("Device Serial Number not set when calling update_time_of_use. Call set_device() first.")
-        
+
+        for item in tou_data:
+            if "time" in item:
+                item["time"] = self._normalize_time_format(item["time"])
+
         url = f"{self._base_url}/order/sys/tou/update"
         headers = await self.get_headers()
         payload = {"deviceSn": self._device_sn, "timeUseSettingItems": tou_data}
