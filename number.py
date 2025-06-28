@@ -7,38 +7,46 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.const import PERCENTAGE
 from homeassistant.helpers.entity import EntityCategory
+from homeassistant.components.number import NumberDeviceClass
 
 from . import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 class DeyeTOUBatteryNumber(NumberEntity):
-    def __init__(self, coordinator, api, slot_index, initial_soc, device_sn):
+    def __init__(self, coordinator, api, slot_index, program, entry):
+        from .helpers import build_device_info
+
+        self._key = "soc"
+
         self._index_string  = str(slot_index + 1)
+        self._coordinator = coordinator
+        self._api = api
+        self._slot_index = slot_index
+        self._device_sn = entry.data["device_sn"]
 
-        self._attr_name = f"Time {self._index_string} Battery"
-        self._attr_unique_id = f"{device_sn}_tou_{self._index_string}_soc"
+        self._attr_name = f"Prog {self._index_string} Battery"
+        self._attr_unique_id = f"deye_{entry.data["device_sn"]}_tou_{self._index_string}_{self._key}"
 
+        self._attr_device_class = NumberDeviceClass.BATTERY
+
+        self._attr_should_poll = False
+
+        self._attr_native_value = program[self._key] if self._key in program else None
         self._attr_native_min_value = 1
         self._attr_native_max_value = 100
         self._attr_native_step = 1
         self._attr_native_unit_of_measurement = PERCENTAGE
-        self._attr_native_value = initial_soc
-        self._coordinator = coordinator
-        self._api = api
-        self._slot_index = slot_index
-        self._device_sn = device_sn
-        self._attr_should_poll = False
+
         self._attr_entity_category = EntityCategory.CONFIG
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, device_sn)},
-            "name": f"Deye Inverter ({device_sn})",
-            "manufacturer": "Deye"
+        self._attr_device_info = build_device_info(api, entry)
+        self._attr_extra_state_attributes = {
+            "time": program["time"]
         }
 
     async def async_set_native_value(self, value: float):
         tou_config = await self._api.get_time_of_use()
-        tou_config[self._slot_index]["soc"] = int(value)
+        tou_config[self._slot_index][self._key] = int(value)
         await self._api.update_time_of_use(tou_config)
         self._attr_native_value = int(value)
         self.async_write_ha_state()
@@ -66,6 +74,6 @@ async def async_setup_entry(
 
     controls = []
     for index, program in enumerate(tou_data):
-        controls.append(DeyeTOUBatteryNumber(coordinator, api, index, program["soc"], entry.data["device_sn"]))
+        controls.append(DeyeTOUBatteryNumber(coordinator, api, index, program, entry))
 
     async_add_entities(controls)
