@@ -1,0 +1,11 @@
+{
+  "name": "Deye Cloud",
+  "content_in_root": false,
+  "domains": ["deye_cloud"],
+  "country": "global",
+  "homeassistant": "2024.6.0",
+  "render_readme": true,
+  "brand": "Deye",
+  "icon": "custom_components/deye_cloud/icon.png",
+  "logo": "custom_components/deye_cloud/logo.png"
+}
