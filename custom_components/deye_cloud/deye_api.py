@@ -93,10 +93,14 @@ class DeyeCloudAPI:
         payload = {"deviceList": [self._device_sn]}
 
         _LOGGER.info(f"Fetching realtime data for device {self._device_sn} from {url}")
-        async with self._session.post(url, headers=headers, json=payload) as resp:
-            resp.raise_for_status()
-            result = await resp.json()
-            return result["deviceDataList"][0]["dataList"]
+        try:
+            async with self._session.post(url, headers=headers, json=payload) as resp:
+                resp.raise_for_status()
+                result = await resp.json()
+                return result.get("deviceDataList", [{}])[0].get("dataList", [])
+        except Exception as e:
+            _LOGGER.exception("Error fetching realtime data: %s", e)
+            return []
 
     async def get_time_of_use(self):
         if not self._device_sn:
@@ -108,10 +112,14 @@ class DeyeCloudAPI:
         payload = {"deviceSn": self._device_sn}
 
         _LOGGER.info(f"Fetching TOU data for device {self._device_sn} from {url}")
-        async with self._session.post(url, headers=headers, json=payload) as resp:
-            resp.raise_for_status()
-            result = await resp.json()
-            return result["timeUseSettingItems"]
+        try:
+            async with self._session.post(url, headers=headers, json=payload) as resp:
+                resp.raise_for_status()
+                result = await resp.json()
+                return result.get("timeUseSettingItems", [])
+        except Exception as e:
+            _LOGGER.exception("Error fetching TOU data: %s", e)
+            return []
 
     def _normalize_time_format(self, time_str: str) -> str:
         """Converts time from 'HHMM' to 'HH:MM' format."""

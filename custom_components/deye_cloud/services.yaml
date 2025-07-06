@@ -1,0 +1,3 @@
+refresh_data:
+  name: Refresh Data
+  description: Manually triggers a data refresh for Deye Cloud.

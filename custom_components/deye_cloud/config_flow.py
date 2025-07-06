@@ -6,6 +6,7 @@ from homeassistant.core import callback
 from homeassistant import exceptions
 
 from homeassistant.helpers.selector import TextSelector, TextSelectorConfig
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import (
     DOMAIN,
@@ -39,13 +40,15 @@ class DeyeCloudConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             try:
                 # Initialize API with user credentials; device_sn will be set after inverter selection
+                session = async_get_clientsession(self.hass)
                 api = DeyeCloudAPI(
                     base_url=user_input[CONF_BASE_URL],
                     app_id=user_input[CONF_APP_ID],
                     app_secret=user_input[CONF_APP_SECRET],
                     email=user_input[CONF_EMAIL],
                     password=user_input[CONF_PASSWORD],
-                    device_sn=None  # Will be set after inverter selection
+                    device_sn=None,  # Will be set after inverter selection
+                    session=session
                 )
                 # Authenticate with the API
                 await api.authenticate()
@@ -106,6 +109,13 @@ class DeyeCloudConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(step_id="select_inverter", data_schema=schema)
 
+    @staticmethod
+    @callback
+    def async_get_options_flow(
+        config_entry: config_entries.ConfigEntry,
+    ) -> config_entries.OptionsFlow:
+        return DeyeCloudOptionsFlow(config_entry)
+
 class DeyeCloudOptionsFlow(config_entries.OptionsFlow):
     """Options flow handler to update Deye Cloud credentials and device selection."""
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
@@ -116,6 +126,7 @@ class DeyeCloudOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             try:
                 # Create a temporary API client with updated input
+                session = async_get_clientsession(self.hass)
                 api = DeyeCloudAPI(
                     base_url=self.config_entry.data[CONF_BASE_URL],
                     app_id=user_input[CONF_APP_ID],
@@ -123,6 +134,7 @@ class DeyeCloudOptionsFlow(config_entries.OptionsFlow):
                     email=user_input[CONF_EMAIL],
                     password=user_input[CONF_PASSWORD],
                     device_sn=None,
+                    session=session
                 )
                 await api.authenticate()
                 headers = await api.get_headers()

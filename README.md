@@ -1,7 +1,7 @@
 # Deye Cloud Integration for Home Assistant
 
 ![HACS Custom Component](https://img.shields.io/badge/HACS-Custom-orange.svg)
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)
 
 ## Overview
 
@@ -20,6 +20,7 @@ This is a **custom integration** and is currently distributed through [HACS (Hom
 - 🔔 Fault and warning status sensors
 - ⏱️ Time-of-Use program control and battery setpoint support
 - 🧠 Uses `DataUpdateCoordinator` for efficient polling
+- 🔧 Frontend reconfiguration via options flow (no need to remove and re-add)
 
 ## Installation
 
@@ -41,7 +42,7 @@ This is a **custom integration** and is currently distributed through [HACS (Hom
 
 ### 3. Restart Home Assistant
 
-Restart is required to load the new integration.
+Restart is required to load the new or updated integration.
 
 
 ## Configuration
@@ -95,7 +96,7 @@ All sensors are automatically labeled, unit-classified, and assigned state/devic
 
 ## Known Limitations
 
-- Time ranges for TOU programs (`start`/`end` times) are shown in entity attributes but not modifiable in Home Assistant.
+- Time ranges for TOU programs are shown in entity attributes and handled internally by the integration, but not exposed as editable values in Home Assistant.
 - Cloud polling interval is based on Deye API update rate, typically every 5–15 minutes.
 
 ## Time-of-Use (TOU) Scheduling and Battery Setpoints
@@ -116,7 +117,7 @@ These are surfaced in Home Assistant as:
 - `switch` entities (e.g., `switch.prog_1_grid_charge`)
 - `number` entities (e.g., `number.prog_1_battery`)
 
-These settings are persisted to the Deye Cloud when modified, and provide smart energy usage scheduling through the UI.
+These settings are validated and written back to the Deye Cloud as a full TOU schedule whenever any value is modified, and provide smart energy usage scheduling through the UI.
 
 ## Troubleshooting
 

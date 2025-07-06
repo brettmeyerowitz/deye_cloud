@@ -52,8 +52,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
 
     # Perform the first data refresh to populate coordinator.data
-    await coordinator.async_config_entry_first_refresh()
-    await toucoordinator.async_config_entry_first_refresh()
+    try:
+        await coordinator.async_config_entry_first_refresh()
+        await toucoordinator.async_config_entry_first_refresh()
+    except Exception as e:
+        _LOGGER.exception("Initial data refresh failed: %s", e)
+        return False
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
         "api": api,
@@ -74,10 +78,33 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     })
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    # Register the refresh_data service only once for all instances
+    if not hass.services.has_service(DOMAIN, "refresh_data"):
+        async def handle_refresh_service(call):
+            """Handle manual refresh service call for all configured entries."""
+            for instance in hass.data.get(DOMAIN, {}).values():
+                await instance["coordinator"].async_request_refresh()
+                await instance["toucoordinator"].async_request_refresh()
+            _LOGGER.info("Manual refresh_data service triggered for all entries")
+
+        hass.services.async_register(
+            DOMAIN,
+            "refresh_data",
+            handle_refresh_service
+        )
+
     return True
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id)
+        if not hass.data[DOMAIN]:
+            hass.services.async_remove(DOMAIN, "refresh_data")
     return unload_ok
+
+# Support config entry reloads
+async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    await async_unload_entry(hass, entry)
+    await async_setup_entry(hass, entry)

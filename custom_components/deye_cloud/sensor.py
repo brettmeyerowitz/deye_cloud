@@ -7,6 +7,7 @@ from homeassistant.components.sensor import SensorEntity
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, CoordinatorEntity
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.helpers.restore_state import RestoreEntity
 
 DOMAIN = "deye_cloud"
 from .deye_api import DeyeCloudAPI
@@ -27,7 +28,7 @@ class DeyeDataCoordinator(DataUpdateCoordinator):
             _LOGGER.error(f"Failed to fetch real-time data: {e}")
             return []
 
-class DeyeRealtimeSensor(CoordinatorEntity, SensorEntity):
+class DeyeRealtimeSensor(CoordinatorEntity, RestoreEntity, SensorEntity):
     def __init__(self, coordinator, api, entry, key, unit):
         super().__init__(coordinator)
 
@@ -37,7 +38,7 @@ class DeyeRealtimeSensor(CoordinatorEntity, SensorEntity):
         self._unit = unit
 
         self._attr_name = get_display_name(key)
-        self._attr_unique_id = f"deye_{entry.data["device_sn"]}_{key.lower()}"
+        self._attr_unique_id = f"deye_{entry.data['device_sn']}_{key.lower()}"
 
         self._attr_device_info = build_device_info(api, entry)
 
@@ -51,6 +52,18 @@ class DeyeRealtimeSensor(CoordinatorEntity, SensorEntity):
             if item.get("key") == self._key:
                 return item.get("value")
         return None
+
+    async def async_added_to_hass(self):
+        await super().async_added_to_hass()
+        if self.coordinator.data:
+            return
+        old_state = await self.async_get_last_state()
+        if old_state and old_state.state not in (None, "unknown", "unavailable"):
+            self._attr_native_value = old_state.state
+
+    @property
+    def available(self) -> bool:
+        return self.coordinator.last_update_success
     
 async def async_setup_entry(
     hass: HomeAssistant,
