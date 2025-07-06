@@ -1,6 +1,6 @@
 from .const import DOMAIN
 
-PLATFORMS = ["sensor", "number", "switch"]
+PLATFORMS = ["sensor", "number", "switch", "select"]
 
 import logging
 _LOGGER = logging.getLogger(__name__)

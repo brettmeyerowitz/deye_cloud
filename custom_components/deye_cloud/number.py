@@ -49,6 +49,7 @@ class DeyeTOUBatteryNumber(NumberEntity):
         tou_config[self._slot_index][self._key] = int(value)
         await self._api.update_time_of_use(tou_config)
         self._attr_native_value = int(value)
+        await self._coordinator.async_request_refresh()
         self.async_write_ha_state()
 
     async def async_added_to_hass(self):

@@ -42,9 +42,11 @@ class DeyeTOUSwitch(SwitchEntity):
 
     async def async_turn_on(self, **kwargs):
         await self._update_switch_value(True)
+        await self._coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs):
         await self._update_switch_value(False)
+        await self._coordinator.async_request_refresh()
 
     async def _update_switch_value(self, new_value):
         tou_config = await self._api.get_time_of_use()
