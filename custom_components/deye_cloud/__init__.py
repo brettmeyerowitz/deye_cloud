@@ -10,6 +10,7 @@ from homeassistant.core import HomeAssistant
 
 from .deye_api import DeyeCloudAPI
 from homeassistant.helpers.storage import Store
+from datetime import timedelta
 
 async def async_get_options_flow(config_entry: ConfigEntry):
     from .config_flow import DeyeCloudOptionsFlow
@@ -39,7 +40,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         _LOGGER,
         name=f"{DOMAIN}_{entry.entry_id}",
         update_method=api.get_realtime_data,
-        update_interval=None,  # could set a default interval here
+        update_interval=timedelta(seconds=60),
     )
 
     toucoordinator = DataUpdateCoordinator(
@@ -47,7 +48,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         _LOGGER,
         name=f"{DOMAIN}_{entry.entry_id}",
         update_method=api.get_time_of_use,
-        update_interval=None,  # could set a default interval here
+        update_interval=timedelta(seconds=60),
     )
 
     # Perform the first data refresh to populate coordinator.data
