@@ -40,15 +40,13 @@ class DeyeCloudConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             try:
                 # Initialize API with user credentials; device_sn will be set after inverter selection
-                session = async_get_clientsession(self.hass)
                 api = DeyeCloudAPI(
                     base_url=user_input[CONF_BASE_URL],
                     app_id=user_input[CONF_APP_ID],
                     app_secret=user_input[CONF_APP_SECRET],
                     email=user_input[CONF_EMAIL],
                     password=user_input[CONF_PASSWORD],
-                    device_sn=None,  # Will be set after inverter selection
-                    session=session
+                    device_sn=None  # Will be set after inverter selection
                 )
                 # Authenticate with the API
                 await api.authenticate()
