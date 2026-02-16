@@ -133,8 +133,7 @@ class DeyeCloudOptionsFlow(config_entries.OptionsFlow):
                     app_secret=user_input[CONF_APP_SECRET],
                     email=user_input[CONF_EMAIL],
                     password=user_input[CONF_PASSWORD],
-                    device_sn=None,
-                    session=session
+                    device_sn=None
                 )
                 await api.authenticate()
                 headers = await api.get_headers()

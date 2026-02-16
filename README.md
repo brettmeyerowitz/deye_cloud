@@ -24,6 +24,12 @@ This is a **custom integration** and is currently distributed through [HACS (Hom
 
 ## Installation
 
+### Easy Installation via HACS
+
+You can quickly add this repository to HACS by clicking the button below:
+
+[![Add to HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=brettmeyerowitz&repository=deye_cloud&category=integration)
+
 ### 1. Add Custom Repository
 
 1. Open Home Assistant

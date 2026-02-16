@@ -1,9 +1,9 @@
 {
   "domain": "deye_cloud",
   "name": "Deye Cloud Integration",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "config_flow": true,
-  "documentation": "https://github.com/brettmeyerowitz/deye-cloud",
+  "documentation": "https://github.com/brettmeyerowitz/deye_cloud",
   "requirements": ["aiohttp"],
   "codeowners": ["@brettmeyerowitz"],
   "dependencies": [],
