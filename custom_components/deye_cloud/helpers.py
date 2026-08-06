@@ -55,7 +55,7 @@ def get_sensor_attributes(unit: str, key: str) -> dict:
     if safe_unit == "kw":
         return {"device_class": SensorDeviceClass.POWER, "native_unit_of_measurement": unit, "state_class": SensorStateClass.MEASUREMENT}
     if safe_unit == "kwh":
-        if "total" in key or "daily" in key:
+        if "total" in key or "daily" in key or "cumulative" in key:
             return {"device_class": SensorDeviceClass.ENERGY, "native_unit_of_measurement": unit, "state_class": SensorStateClass.TOTAL_INCREASING}
         return {"device_class": SensorDeviceClass.ENERGY, "native_unit_of_measurement": unit, "state_class": SensorStateClass.MEASUREMENT}
     if safe_unit == "hz":
