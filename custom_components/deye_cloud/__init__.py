@@ -14,7 +14,7 @@ from datetime import timedelta
 
 async def async_get_options_flow(config_entry: ConfigEntry):
     from .config_flow import DeyeCloudOptionsFlow
-    return DeyeCloudOptionsFlow(config_entry)
+    return DeyeCloudOptionsFlow()
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     api = DeyeCloudAPI(
