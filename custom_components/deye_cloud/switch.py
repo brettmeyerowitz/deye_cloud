@@ -56,10 +56,7 @@ class DeyeTOUSwitch(SwitchEntity):
         self.async_write_ha_state()
 
     async def async_added_to_hass(self):
-        self._coordinator.async_add_listener(self.async_write_ha_state)
-
-    async def async_will_remove_from_hass(self):
-        self._coordinator.async_remove_listener(self.async_write_ha_state)
+        self.async_on_remove(self._coordinator.async_add_listener(self.async_write_ha_state))
 
 async def async_setup_entry(hass, entry, async_add_entities):
     data = hass.data[DOMAIN][entry.entry_id]
