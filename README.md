@@ -1,7 +1,7 @@
 # Deye Cloud Integration for Home Assistant
 
 ![HACS Custom Component](https://img.shields.io/badge/HACS-Custom-orange.svg)
-![Version](https://img.shields.io/badge/version-1.1.4-blue.svg)
+![Version](https://img.shields.io/badge/version-1.1.5-blue.svg)
 
 ## Overview
 
