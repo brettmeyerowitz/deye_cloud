@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import timedelta
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, CoordinatorEntity
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -74,22 +74,30 @@ async def async_setup_entry(
     api: DeyeCloudAPI = data["api"]
     coordinator = data["coordinator"]
 
-    sensors: list[SensorEntity] = []
+    # Keys already turned into entities. The API can omit datapoints from a
+    # response, so sensors are also added for keys that only show up later.
+    known_keys: set[str] = set()
+
+    @callback
+    def _add_new_sensors() -> None:
+        sensors: list[SensorEntity] = []
+        for sensor in coordinator.data or []:
+            key = sensor.get("key")
+            unit = sensor.get("unit")
+            if key is None or key in known_keys:
+                continue
+            known_keys.add(key)
+            try:
+                sensors.append(DeyeRealtimeSensor(coordinator, api, entry, key, unit))
+            except Exception:
+                _LOGGER.exception(
+                    "Skipping sensor %s: could not build entity (unit=%r)", key, unit
+                )
+        if sensors:
+            async_add_entities(sensors)
 
     _LOGGER.info("Setting up Deye realtime sensors")
     if not coordinator.data:
         _LOGGER.warning("Coordinator returned no data during setup")
-        return
-    for sensor in coordinator.data:
-        key = sensor.get("key")
-        unit = sensor.get("unit")
-        if key is None:
-            continue
-        try:
-            sensors.append(DeyeRealtimeSensor(coordinator, api, entry, key, unit))
-        except Exception:
-            _LOGGER.exception(
-                "Skipping sensor %s: could not build entity (unit=%r)", key, unit
-            )
-
-    async_add_entities(sensors)    
+    _add_new_sensors()
+    entry.async_on_unload(coordinator.async_add_listener(_add_new_sensors))    
