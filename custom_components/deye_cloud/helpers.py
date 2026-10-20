@@ -42,9 +42,15 @@ def get_display_name(key: str) -> str:
     name = name.replace("Pv", "PV").replace("pv", "PV")
     return name.strip()
 
-def get_sensor_attributes(unit: str, key: str) -> dict:
+def get_sensor_attributes(unit: str | None, key: str) -> dict:
+    # The Deye API returns "unit": null for dimensionless datapoints (status codes,
+    # operating modes). Without this guard the AttributeError propagates out of
+    # async_setup_entry and no sensor at all gets created.
     safe_unit = (unit or "").lower()
     key = key.lower()
+
+    if not safe_unit:
+        return {}
 
     if safe_unit == "v":
         return {"device_class": SensorDeviceClass.VOLTAGE, "native_unit_of_measurement": unit, "state_class": SensorStateClass.MEASUREMENT}
@@ -65,6 +71,6 @@ def get_sensor_attributes(unit: str, key: str) -> dict:
     if safe_unit == "va":
         return {"device_class": SensorDeviceClass.APPARENT_POWER, "native_unit_of_measurement": unit, "state_class": SensorStateClass.MEASUREMENT}
 
-    return {"native_unit_of_measurement": safe_unit or None, "state_class": SensorStateClass.MEASUREMENT}
+    return {"native_unit_of_measurement": safe_unit, "state_class": SensorStateClass.MEASUREMENT}
 
 
