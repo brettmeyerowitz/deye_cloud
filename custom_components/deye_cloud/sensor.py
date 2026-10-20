@@ -83,7 +83,13 @@ async def async_setup_entry(
     for sensor in coordinator.data:
         key = sensor.get("key")
         unit = sensor.get("unit")
-        if key is not None:
+        if key is None:
+            continue
+        try:
             sensors.append(DeyeRealtimeSensor(coordinator, api, entry, key, unit))
+        except Exception:
+            _LOGGER.exception(
+                "Skipping sensor %s: could not build entity (unit=%r)", key, unit
+            )
 
     async_add_entities(sensors)    

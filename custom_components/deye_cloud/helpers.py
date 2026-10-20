@@ -43,7 +43,7 @@ def get_display_name(key: str) -> str:
     return name.strip()
 
 def get_sensor_attributes(unit: str, key: str) -> dict:
-    safe_unit = unit.lower()
+    safe_unit = (unit or "").lower()
     key = key.lower()
 
     if safe_unit == "v":
@@ -65,6 +65,6 @@ def get_sensor_attributes(unit: str, key: str) -> dict:
     if safe_unit == "va":
         return {"device_class": SensorDeviceClass.APPARENT_POWER, "native_unit_of_measurement": unit, "state_class": SensorStateClass.MEASUREMENT}
 
-    return {"native_unit_of_measurement": safe_unit, "state_class": SensorStateClass.MEASUREMENT}
+    return {"native_unit_of_measurement": safe_unit or None, "state_class": SensorStateClass.MEASUREMENT}
 
 
